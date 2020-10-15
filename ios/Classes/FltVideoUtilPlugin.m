@@ -20,6 +20,8 @@
     if ([@"compressToMp4" isEqualToString:method]) {
         NSString *videoPath = argsMap[@"videoPath"];
         NSString *mp4Path = argsMap[@"mp4Path"];
+        double maxSize = [argsMap[@"maxSize"] doubleValue];
+        NSInteger bitRate = [argsMap[@"bitRate"] integerValue];
         
         AVURLAsset *anAsset = [AVURLAsset URLAssetWithURL:[NSURL fileURLWithPath:videoPath] options:nil];
         SDAVAssetExportSession *encoder = [[SDAVAssetExportSession alloc] initWithAsset:anAsset];
@@ -28,27 +30,26 @@
         encoder.outputURL = [NSURL fileURLWithPath:mp4Path];
 
         CGSize size = [self getVideoSize:videoPath];
-        double width = size.width > 0 ? size.width : 960;
-        double height = size.height > 0 ? size.height : 960;
-        if (MAX(size.width, size.height) > 960 && size.width > 0 && size.height > 0) {
+        double width = size.width > 0 ? size.width : maxSize;
+        double height = size.height > 0 ? size.height : maxSize;
+        if (MAX(size.width, size.height) > maxSize && size.width > 0 && size.height > 0) {
             if (size.width > size.height) {
-                width = 960;
+                width = maxSize;
                 height = width * size.height / size.width;
             }
             else {
-                height = 960;
+                height = maxSize;
                 width = height * size.width / size.height;
             }
         }
         encoder.videoSettings = @
         {
-            // 960
             AVVideoCodecKey: AVVideoCodecH264,
             AVVideoWidthKey: @(width),
             AVVideoHeightKey: @(height),
             AVVideoCompressionPropertiesKey: @
             {
-                AVVideoAverageBitRateKey: @3000000,
+                AVVideoAverageBitRateKey: @(bitRate),
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264High40,
             },
         };
