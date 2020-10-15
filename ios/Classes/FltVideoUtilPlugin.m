@@ -23,9 +23,9 @@
         encoder.outputURL = [NSURL fileURLWithPath:mp4Path];
 
         CGSize size = [self getVideoSize:videoPath];
-        double width = 960;
-        double height = 960;
-        if (size.width > 0 && size.height > 0) {
+        double width = size.width > 0 ? size.width : 960;
+        double height = size.height > 0 ? size.height : 960;
+        if (MAX(size.width, size.height) > 960 && size.width > 0 && size.height > 0) {
             if (size.width > size.height) {
                 width = 960;
                 height = width * size.height / size.width;
