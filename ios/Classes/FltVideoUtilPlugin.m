@@ -1,6 +1,10 @@
 #import "FltVideoUtilPlugin.h"
 #import "SDAVAssetExportSession.h"
 
+@interface FltVideoUtilPlugin ()
+@property(nonatomic, strong) NSMutableArray *encoders;
+@end
+
 @implementation FltVideoUtilPlugin
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   FlutterMethodChannel* channel = [FlutterMethodChannel
@@ -18,7 +22,8 @@
         NSString *mp4Path = argsMap[@"mp4Path"];
         
         AVURLAsset *anAsset = [AVURLAsset URLAssetWithURL:[NSURL fileURLWithPath:videoPath] options:nil];
-        SDAVAssetExportSession *encoder = [SDAVAssetExportSession.alloc initWithAsset:anAsset];
+        SDAVAssetExportSession *encoder = [[SDAVAssetExportSession alloc] initWithAsset:anAsset];
+        [self.encoders addObject:encoder];
         encoder.outputFileType = AVFileTypeMPEG4;
         encoder.outputURL = [NSURL fileURLWithPath:mp4Path];
 
@@ -55,23 +60,26 @@
             AVEncoderBitRateKey: @128000,
         };
 
+        __weak typeof(encoder) weakEncode = encoder;
+        __weak typeof(self) weakSelf = self;
         [encoder exportAsynchronouslyWithCompletionHandler:^
         {
-            if (encoder.status == AVAssetExportSessionStatusCompleted)
+            if (weakEncode.status == AVAssetExportSessionStatusCompleted)
             {
                 NSLog(@"Video export succeeded");
                 result(@(YES));
             }
-            else if (encoder.status == AVAssetExportSessionStatusCancelled)
+            else if (weakEncode.status == AVAssetExportSessionStatusCancelled)
             {
                 NSLog(@"Video export cancelled");
                 result(@(NO));
             }
             else
             {
-                NSLog(@"Video export failed with error: %@ (%d)", encoder.error.localizedDescription, encoder.error.code);
+                NSLog(@"Video export failed with error: %@ (%ld)", weakEncode.error.localizedDescription, weakEncode.error.code);
                 result(@(NO));
             }
+            [weakSelf.encoders removeObject:weakEncode];
         }];
     }
     else if ([@"getVideoSize" isEqualToString:method]) {
@@ -108,6 +116,14 @@
         }
     }
     return size;
+}
+
+- (NSMutableArray *)encoders
+{
+    if (_encoders == nil) {
+        _encoders = [NSMutableArray array];
+    }
+    return _encoders;
 }
 
 @end
