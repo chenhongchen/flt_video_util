@@ -17,6 +17,7 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 import io.reactivex.Flowable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
@@ -67,6 +68,7 @@ public class FltVideoUtilPlugin implements FlutterPlugin, MethodCallHandler {
                 }
               })
               .subscribeOn(Schedulers.io())
+              .observeOn(AndroidSchedulers.mainThread())
               .subscribe(new Subscriber<Boolean>() {
                 @Override
                 public void onSubscribe(Subscription s) {
