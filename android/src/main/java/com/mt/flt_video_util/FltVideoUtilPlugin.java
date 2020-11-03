@@ -2,6 +2,11 @@ package com.mt.flt_video_util;
 
 import androidx.annotation.NonNull;
 
+import com.vincent.videocompressor.VideoController;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -41,6 +46,23 @@ public class FltVideoUtilPlugin implements FlutterPlugin, MethodCallHandler {
   public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
     if (call.method.equals("getPlatformVersion")) {
       result.success("Android " + android.os.Build.VERSION.RELEASE);
+    }else if(call.method.equals("compressToMp4")){
+      Map args=(Map)call.arguments;
+      String videoPath=(String) args.get("videoPath");
+      String mp4Path=(String) args.get("mp4Path");
+      Double maxSize=(Double) args.get("maxSize");
+      int bitRate=(int) args.get("bitRate");
+      boolean success=VideoController.getInstance().convertVideo(videoPath, mp4Path,
+              maxSize,bitRate,null);
+      result.success(success);
+    }else if(call.method.equals("getVideoSize")){
+      Map args=(Map)call.arguments;
+      String videoPath=(String) args.get("videoPath");
+      double[] videoSize=VideoController.getInstance().getVideoSize(videoPath);
+      Map<String,Double> map=new HashMap<>();
+      map.put("width",videoSize[0]);
+      map.put("height",videoSize[1]);
+      result.success(map);
     } else {
       result.notImplemented();
     }
