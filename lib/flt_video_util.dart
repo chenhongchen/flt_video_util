@@ -28,7 +28,10 @@ class FltVideoUtil {
     Map param = Map();
     param['videoPath'] = videoPath;
 
-    final Size size = await _channel.invokeMethod('getVideoSize', param);
+    Map map = await _channel.invokeMethod('getVideoSize', param);
+    double width = map['width'] ?? 0;
+    double height = map['height'] ?? 0;
+    Size size = Size(width, height);
     return size;
   }
 }
