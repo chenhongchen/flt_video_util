@@ -41,5 +41,5 @@ rootProject.allprojects {
     }
 }
 dependencies {
-    implementation 'com.autoday:videocompressor:1.0.1'
+    implementation 'com.autoday:videocompressor:1.0.2'
 }

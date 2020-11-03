@@ -52,8 +52,13 @@ public class FltVideoUtilPlugin implements FlutterPlugin, MethodCallHandler {
       String mp4Path=(String) args.get("mp4Path");
       Double maxSize=(Double) args.get("maxSize");
       int bitRate=(int) args.get("bitRate");
-      boolean success=VideoController.getInstance().convertVideo(videoPath, mp4Path,
-              maxSize,bitRate,null);
+      boolean success= false;
+      try {
+        success = VideoController.getInstance().convertVideo(videoPath, mp4Path,
+                maxSize,bitRate,null);
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
       result.success(success);
     }else if(call.method.equals("getVideoSize")){
       Map args=(Map)call.arguments;
