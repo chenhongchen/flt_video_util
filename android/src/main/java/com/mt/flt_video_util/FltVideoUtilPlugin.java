@@ -4,6 +4,9 @@ import androidx.annotation.NonNull;
 
 import com.vincent.videocompressor.VideoController;
 
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,6 +16,9 @@ import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
+import io.reactivex.Flowable;
+import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
 
 /** FltVideoUtilPlugin */
 public class FltVideoUtilPlugin implements FlutterPlugin, MethodCallHandler {
@@ -43,23 +49,45 @@ public class FltVideoUtilPlugin implements FlutterPlugin, MethodCallHandler {
   }
 
   @Override
-  public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
+  public void onMethodCall(@NonNull MethodCall call, @NonNull final Result result) {
     if (call.method.equals("getPlatformVersion")) {
       result.success("Android " + android.os.Build.VERSION.RELEASE);
     }else if(call.method.equals("compressToMp4")){
       Map args=(Map)call.arguments;
-      String videoPath=(String) args.get("videoPath");
-      String mp4Path=(String) args.get("mp4Path");
-      Double maxSize=(Double) args.get("maxSize");
-      int bitRate=(int) args.get("bitRate");
-      boolean success= false;
-      try {
-        success = VideoController.getInstance().convertVideo(videoPath, mp4Path,
-                maxSize,bitRate,null);
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-      result.success(success);
+      Flowable.just(args)
+              .map(new Function<Map, Boolean>() {
+                @Override
+                public Boolean apply(@io.reactivex.annotations.NonNull Map map) throws Exception {
+                  String videoPath=(String) map.get("videoPath");
+                  String mp4Path=(String) map.get("mp4Path");
+                  Double maxSize=(Double) map.get("maxSize");
+                  int bitRate=(int) map.get("bitRate");
+                  return VideoController.getInstance().convertVideo(videoPath, mp4Path,
+                          maxSize,bitRate,null);
+                }
+              })
+              .subscribeOn(Schedulers.io())
+              .subscribe(new Subscriber<Boolean>() {
+                @Override
+                public void onSubscribe(Subscription s) {
+                  s.request(Long.MAX_VALUE);
+                }
+
+                @Override
+                public void onNext(Boolean aBoolean) {
+                  result.success(aBoolean);
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                  result.success(false);
+                }
+
+                @Override
+                public void onComplete() {
+
+                }
+              });
     }else if(call.method.equals("getVideoSize")){
       Map args=(Map)call.arguments;
       String videoPath=(String) args.get("videoPath");
