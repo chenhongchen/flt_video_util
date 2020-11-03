@@ -31,11 +31,15 @@ android {
         disable 'InvalidPackage'
     }
 }
-repositories {
-    maven {
-        url 'http://192.168.20.14:8081/repository/maven-releases/'
+rootProject.allprojects {
+    repositories {
+        google()
+        jcenter()
+        maven {
+            url 'http://192.168.20.14:8081/repository/maven-releases/'
+        }
     }
 }
 dependencies {
-    implementation 'com.autoday:videocompressor:1.0.0'
+    implementation 'com.autoday:videocompressor:1.0.1'
 }
