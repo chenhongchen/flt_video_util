@@ -277,7 +277,6 @@
 
 - (AVMutableVideoComposition *)buildDefaultVideoComposition
 {
-    AVMutableVideoComposition *videoComposition = [AVMutableVideoComposition videoComposition];
     AVAssetTrack *videoTrack = [[self.asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0];
 
     // get the frame rate from videoSettings, if not set then try to get it from the video track,
@@ -304,56 +303,134 @@
     {
         trackFrameRate = 30;
     }
+    
+    AVMutableVideoComposition *videoComposition = [self fixedCompositionWithAsset:self.asset videoTrack:videoTrack trackFrameRate:trackFrameRate];
 
-	videoComposition.frameDuration = CMTimeMake(1, trackFrameRate);
-	CGSize targetSize = CGSizeMake([self.videoSettings[AVVideoWidthKey] floatValue], [self.videoSettings[AVVideoHeightKey] floatValue]);
-	CGSize naturalSize = [videoTrack naturalSize];
-	CGAffineTransform transform = videoTrack.preferredTransform;
-	// Workaround radar 31928389, see https://github.com/rs/SDAVAssetExportSession/pull/70 for more info
-	if (transform.ty == -560) {
-		transform.ty = 0;
-	}
-
-	if (transform.tx == -560) {
-		transform.tx = 0;
-	}
-
-	CGFloat videoAngleInDegree  = atan2(transform.b, transform.a) * 180 / M_PI;
-	if (videoAngleInDegree == 90 || videoAngleInDegree == -90) {
-		CGFloat width = naturalSize.width;
-		naturalSize.width = naturalSize.height;
-		naturalSize.height = width;
-	}
-	videoComposition.renderSize = naturalSize;
-	// center inside
-	{
-		float ratio;
-		float xratio = targetSize.width / naturalSize.width;
-		float yratio = targetSize.height / naturalSize.height;
-		ratio = MIN(xratio, yratio);
-
-		float postWidth = naturalSize.width * ratio;
-		float postHeight = naturalSize.height * ratio;
-		float transx = (targetSize.width - postWidth) / 2;
-		float transy = (targetSize.height - postHeight) / 2;
-
-		CGAffineTransform matrix = CGAffineTransformMakeTranslation(transx / xratio, transy / yratio);
-		matrix = CGAffineTransformScale(matrix, ratio / xratio, ratio / yratio);
-		transform = CGAffineTransformConcat(transform, matrix);
-	}
-
-	// Make a "pass through video track" video composition.
-	AVMutableVideoCompositionInstruction *passThroughInstruction = [AVMutableVideoCompositionInstruction videoCompositionInstruction];
-	passThroughInstruction.timeRange = CMTimeRangeMake(kCMTimeZero, self.asset.duration);
-
-	AVMutableVideoCompositionLayerInstruction *passThroughLayer = [AVMutableVideoCompositionLayerInstruction videoCompositionLayerInstructionWithAssetTrack:videoTrack];
-
-    [passThroughLayer setTransform:transform atTime:kCMTimeZero];
-
-	passThroughInstruction.layerInstructions = @[passThroughLayer];
-	videoComposition.instructions = @[passThroughInstruction];
+    videoComposition.frameDuration = CMTimeMake(1, trackFrameRate);
+        
 
     return videoComposition;
+}
+
+/// 获取优化后的视频转向信息
+- (AVMutableVideoComposition *)fixedCompositionWithAsset:(AVAsset *)videoAsset videoTrack:(AVAssetTrack *)videoTrack trackFrameRate:(float)trackFrameRate {
+    AVMutableVideoComposition *videoComposition = [AVMutableVideoComposition videoComposition];
+    // 视频转向
+    int degrees = [self degressFromVideoFileWithAsset:videoAsset];
+    // 走修复（一般是竖视频）
+    if (degrees != 0) {
+        CGAffineTransform translateToCenter;
+        CGAffineTransform mixedTransform;
+        videoComposition.frameDuration = CMTimeMake(1, 30);
+        
+        NSArray *tracks = [videoAsset tracksWithMediaType:AVMediaTypeVideo];
+        AVAssetTrack *videoTrack = [tracks objectAtIndex:0];
+        
+        AVMutableVideoCompositionInstruction *roateInstruction = [AVMutableVideoCompositionInstruction videoCompositionInstruction];
+        roateInstruction.timeRange = CMTimeRangeMake(kCMTimeZero, [videoAsset duration]);
+        AVMutableVideoCompositionLayerInstruction *roateLayerInstruction = [AVMutableVideoCompositionLayerInstruction videoCompositionLayerInstructionWithAssetTrack:videoTrack];
+        
+        if (degrees == 90) {
+            // 顺时针旋转90°
+            translateToCenter = CGAffineTransformMakeTranslation(videoTrack.naturalSize.height, 0.0);
+            mixedTransform = CGAffineTransformRotate(translateToCenter,M_PI_2);
+            videoComposition.renderSize = CGSizeMake(videoTrack.naturalSize.height,videoTrack.naturalSize.width);
+            [roateLayerInstruction setTransform:mixedTransform atTime:kCMTimeZero];
+        } else if(degrees == 180){
+            // 顺时针旋转180°
+            translateToCenter = CGAffineTransformMakeTranslation(videoTrack.naturalSize.width, videoTrack.naturalSize.height);
+            mixedTransform = CGAffineTransformRotate(translateToCenter,M_PI);
+            videoComposition.renderSize = CGSizeMake(videoTrack.naturalSize.width,videoTrack.naturalSize.height);
+            [roateLayerInstruction setTransform:mixedTransform atTime:kCMTimeZero];
+        } else if(degrees == 270){
+            // 顺时针旋转270°
+            translateToCenter = CGAffineTransformMakeTranslation(0.0, videoTrack.naturalSize.width);
+            mixedTransform = CGAffineTransformRotate(translateToCenter,M_PI_2*3.0);
+            videoComposition.renderSize = CGSizeMake(videoTrack.naturalSize.height,videoTrack.naturalSize.width);
+            [roateLayerInstruction setTransform:mixedTransform atTime:kCMTimeZero];
+        }else {//增加异常处理
+            videoComposition.renderSize = CGSizeMake(videoTrack.naturalSize.width,videoTrack.naturalSize.height);
+        }
+        
+        roateInstruction.layerInstructions = @[roateLayerInstruction];
+        // 加入视频方向信息
+        videoComposition.instructions = @[roateInstruction];
+    }
+    // 走默认（一般是横视频）
+    else {
+        videoComposition.frameDuration = CMTimeMake(1, trackFrameRate);
+        CGSize targetSize = CGSizeMake([self.videoSettings[AVVideoWidthKey] floatValue], [self.videoSettings[AVVideoHeightKey] floatValue]);
+        CGSize naturalSize = [videoTrack naturalSize];
+        CGAffineTransform transform = videoTrack.preferredTransform;
+        // Workaround radar 31928389, see https://github.com/rs/SDAVAssetExportSession/pull/70 for more info
+        if (transform.ty == -560) {
+            transform.ty = 0;
+        }
+
+        if (transform.tx == -560) {
+            transform.tx = 0;
+        }
+
+        CGFloat videoAngleInDegree  = atan2(transform.b, transform.a) * 180 / M_PI;
+        if (videoAngleInDegree == 90 || videoAngleInDegree == -90) {
+            CGFloat width = naturalSize.width;
+            naturalSize.width = naturalSize.height;
+            naturalSize.height = width;
+        }
+        videoComposition.renderSize = naturalSize;
+        // center inside
+        {
+            float ratio;
+            float xratio = targetSize.width / naturalSize.width;
+            float yratio = targetSize.height / naturalSize.height;
+            ratio = MIN(xratio, yratio);
+
+            float postWidth = naturalSize.width * ratio;
+            float postHeight = naturalSize.height * ratio;
+            float transx = (targetSize.width - postWidth) / 2;
+            float transy = (targetSize.height - postHeight) / 2;
+
+            CGAffineTransform matrix = CGAffineTransformMakeTranslation(transx / xratio, transy / yratio);
+            matrix = CGAffineTransformScale(matrix, ratio / xratio, ratio / yratio);
+            transform = CGAffineTransformConcat(transform, matrix);
+        }
+
+        // Make a "pass through video track" video composition.
+        AVMutableVideoCompositionInstruction *passThroughInstruction = [AVMutableVideoCompositionInstruction videoCompositionInstruction];
+        passThroughInstruction.timeRange = CMTimeRangeMake(kCMTimeZero, self.asset.duration);
+
+        AVMutableVideoCompositionLayerInstruction *passThroughLayer = [AVMutableVideoCompositionLayerInstruction videoCompositionLayerInstructionWithAssetTrack:videoTrack];
+
+        [passThroughLayer setTransform:transform atTime:kCMTimeZero];
+
+        passThroughInstruction.layerInstructions = @[passThroughLayer];
+        videoComposition.instructions = @[passThroughInstruction];
+    }
+    return videoComposition;
+}
+
+/// 获取视频角度
+- (int)degressFromVideoFileWithAsset:(AVAsset *)asset {
+    int degress = 0;
+    NSArray *tracks = [asset tracksWithMediaType:AVMediaTypeVideo];
+    if([tracks count] > 0) {
+        AVAssetTrack *videoTrack = [tracks objectAtIndex:0];
+        CGAffineTransform t = videoTrack.preferredTransform;
+        if(t.a == 0 && t.b == 1.0 && t.c == -1.0 && t.d == 0){
+            // Portrait
+            degress = 90;
+        } else if(t.a == 0 && t.b == -1.0 && t.c == 1.0 && t.d == 0){
+            // PortraitUpsideDown
+            degress = 270;
+        } else if(t.a == 1.0 && t.b == 0 && t.c == 0 && t.d == 1.0){
+            // LandscapeRight
+            degress = 0;
+        } else if(t.a == -1.0 && t.b == 0 && t.c == 0 && t.d == -1.0){
+            // LandscapeLeft
+            degress = 180;
+        }
+    }
+    return degress;
 }
 
 - (void)finish
