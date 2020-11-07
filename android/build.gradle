@@ -31,3 +31,17 @@ android {
         disable 'InvalidPackage'
     }
 }
+rootProject.allprojects {
+    repositories {
+        google()
+        jcenter()
+        maven {
+            url 'http://192.168.20.14:8081/repository/maven-releases/'
+        }
+    }
+}
+dependencies {
+    implementation 'com.autoday:videocompressor:1.0.2'
+    implementation 'io.reactivex.rxjava2:rxjava:2.1.9'
+    implementation 'io.reactivex.rxjava2:rxandroid:2.0.2'
+}
