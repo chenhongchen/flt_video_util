@@ -3,6 +3,7 @@
 
 @interface FltVideoUtilPlugin ()
 @property(nonatomic, strong) NSMutableArray *encoders;
+@property(nonatomic, strong) NSTimer *timer;
 @end
 
 @implementation FltVideoUtilPlugin
@@ -25,6 +26,10 @@
         
         AVURLAsset *anAsset = [AVURLAsset URLAssetWithURL:[NSURL fileURLWithPath:videoPath] options:nil];
         SDAVAssetExportSession *encoder = [[SDAVAssetExportSession alloc] initWithAsset:anAsset];
+        if (self.encoders.count <= 0) {
+            [_timer invalidate];
+            _timer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(timeEvent) userInfo:nil repeats:YES];
+        }
         [self.encoders addObject:encoder];
         encoder.outputFileType = AVFileTypeMPEG4;
         encoder.outputURL = [NSURL fileURLWithPath:mp4Path];
@@ -81,6 +86,10 @@
                 result(@(NO));
             }
             [weakSelf.encoders removeObject:weakEncode];
+            if (weakSelf.encoders.count <= 0) {
+                [weakSelf.timer invalidate];
+                weakSelf.timer = nil;
+            }
         }];
     }
     else if ([@"getVideoSize" isEqualToString:method]) {
@@ -127,4 +136,11 @@
     return _encoders;
 }
 
+- (void)timeEvent {
+    for (SDAVAssetExportSession *encoder in self.encoders) {
+//        NSLog(@"SDAVAssetExportSession progress = %f", encoder.progress);
+    }
+}
+
 @end
+
