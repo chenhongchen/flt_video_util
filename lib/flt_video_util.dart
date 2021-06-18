@@ -7,8 +7,8 @@ class FltVideoUtil {
   static const MethodChannel _channel = const MethodChannel('flt_video_util');
 
   static Future<bool> compressToMp4(String videoPath, String mp4Path,
-      {double maxSize, int bitRate}) async {
-    if ((videoPath ?? '').length <= 0 || (mp4Path ?? '').length <= 0) {
+      {double? maxSize, int? bitRate}) async {
+    if (videoPath.length <= 0 || mp4Path.length <= 0) {
       return false;
     }
     Map param = Map();
@@ -22,7 +22,7 @@ class FltVideoUtil {
   }
 
   static Future<Size> getVideoSize(String videoPath) async {
-    if ((videoPath ?? '').length <= 0) {
+    if (videoPath.length <= 0) {
       return Size.zero;
     }
     Map param = Map();
