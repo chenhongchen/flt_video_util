@@ -36,6 +36,7 @@ rootProject.allprojects {
         google()
         jcenter()
         maven {
+            allowInsecureProtocol = true
             url 'http://192.168.20.14:8081/repository/maven-releases/'
         }
     }
